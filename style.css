@@ -1,0 +1,107 @@
+svg, .selector {
+    margin: 0 auto;
+    display: block;
+    text-align: center;
+}
+
+svg {
+  margin-bottom: 20px;
+  border: 1px solid gray;
+  border-radius: 10%;
+/*  background-image: url('./space.png');  */
+  background-color: black;
+}
+
+svg.flat {
+  background-image: none;
+  background: lightblue;
+}
+
+.selector {
+  width: 270px;
+  padding: 5px;
+}
+.selector p {
+  display: inline;
+}
+.selector select {
+  float: right;
+}
+select {
+  width: 150px;
+}
+.country {
+    stroke: #444649;
+    stroke-width: 0.25px;
+    opacity: 0.9;
+}
+
+.country.active, .country:hover {
+  stroke: black;
+  stroke-width: 1.5px;
+  opacity: 1;
+}
+.country:hover
+  {   
+    stroke-dasharray: 2 1;
+  }
+.country.active:hover {
+  stroke-dasharray: none;
+}
+
+.land {
+  fill:black;
+  opacity:1;
+}
+
+.globecover {
+  fill : lightblue;
+  opacity: 0.9;
+}
+svg.flat .globecover {
+  display: none;
+}
+
+.graticule {
+  stroke: darkgray;
+  stroke-width:1;
+}
+
+.flat .graticule {
+  stroke: #7384a0;
+  stroke-width:.5;
+}
+
+
+.tooltip {
+  opacity: 0;
+  position: absolute;
+  pointer-events: none;
+  background-color: rgba(178, 185,196,0.8);
+  border: 1px rgba(97, 122, 165, 0.8) solid;
+  border-radius: 8px;
+  padding: 8px 15px;
+  width: 300px;
+
+} 
+
+.tooltip h4 {
+  margin: 0 0 8px 0;
+}
+
+.tooltip p {
+  margin: 2px;
+}
+
+
+.tooltip:before {
+  content: ' ';
+  position: absolute;
+  border: 12px solid transparent;
+  border-bottom-color: rgba(97, 122, 165, 0.8) ;
+  top: -25px;
+  left: 50%;
+  margin-left: -6px;
+}
+
+
