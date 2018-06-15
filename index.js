@@ -9,5 +9,5 @@ app.get('/', function(req, res) {
 
 
 app.listen(3000, function() {
-    console.log('"World Data" running on 3000')
+    console.log('"TopoWorldMap running on 3000')
 })
