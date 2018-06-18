@@ -1,6 +1,7 @@
 
 
-function makeMap(geoData110, landMass110, geoData50, landMass50) {
+function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
+  console.log(worldLoRes);
   //================makeMap SCOPE=========================
   const width = 960;
   const height = 600;
@@ -13,7 +14,8 @@ function makeMap(geoData110, landMass110, geoData50, landMass50) {
       tmax,
       scaleFactor,
       geoData,
-      landMass;
+      landMass,
+      svg;
 
   //===============SET DEFAULTS=========================
 
@@ -82,24 +84,28 @@ function makeMap(geoData110, landMass110, geoData50, landMass50) {
   state.scale = init.defaultZoom.mercator;          //-----set scale State
 
   let graticule = d3.geoGraticule()
-  // ================Create Static Map Elements    
-  var svg = d3.select('svg')
+
+
+  // ================Create Static Map Elements  
+  function setupMap() {
+    svg = d3.select('svg')
       .attr('width', width)
       .attr('height', height)
   //-------add drag functionality-------------
-  svg.call(d3.drag()
-      .on('start', dragStart)
-      .on('drag', drag))
+    svg.call(d3.drag()
+        .on('start', dragStart)
+        .on('drag', drag))
 
-  //-------add graticule path)
-  svg.append('path')
-    .datum(graticule)
-    .attr('class', 'graticule')
+    //-------add graticule path)
+    svg.append('path')
+      .datum(graticule)
+      .attr('class', 'graticule')
 
-  //-------add globe cover--------------------
-  svg.append('circle')
-      .attr('class', 'globecover')
-
+    //-------add globe cover--------------------
+    svg.append('circle')
+        .attr('class', 'globecover')
+}
+  setupMap();
   updatePaths();
   createMap();
 
@@ -112,8 +118,9 @@ function makeMap(geoData110, landMass110, geoData50, landMass50) {
     });
   //---------add landMass path---------------
   function updatePaths() {
-    geoData = state.hiResMap ? geoData50 : geoData110;
-    landMass = state.hiResMap ? landMass50 : landMass110;
+    geoData = state.hiResMap ? worldHiRes : worldLoRes;
+    landMass = state.hiResMap ? landHiRes : landLoRes;
+    console.log(geoData, landMass);
     var land = svg.select('.land')
                   .datum(landMass[0])
                     .append('path')
@@ -135,9 +142,11 @@ function makeMap(geoData110, landMass110, geoData50, landMass50) {
             .on('mouseout touchend', hideTooltip)
             .attr('id', d => d.properties.countryCode)
             .attr('d', paths[state.projection])
+  }
+
 
     //---------setup tooltip for Country data--------------------------
-  }
+
     //-------Tooltips------------------------
   var tooltip = d3.select('body')
                   .append('div')
