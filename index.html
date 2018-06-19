@@ -15,12 +15,12 @@
     <div class="selector">
         <p>Select Data</p>
         <select id='data'>
-            <option value='nodata'>No Data</option>
-            <option value='population'>Population</option>
-            <option value='popDensity'>Population Density</option>
-            <option value='medianAge'>Median Age</option>
-            <option value='fertilityRate'>Fertility Rate</option>
+            <option value='countryCode'>No Data</option>
         </select>
+    </div>
+    <div class="selector year hidden">
+        <p>Select Year</p>
+        <input id="year" type="range" step="1">
     </div>
     <div class="selector">
         <p>Select Projection</p>
@@ -34,16 +34,18 @@
         </form>
     </div>
     <script src="https://d3js.org/d3.v4.js"></script>
-    <script src="https://d3js.org/d3-color.v1.min.js"></script>
+<!--<script src="https://d3js.org/d3-color.v1.min.js"></script>
     <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
     <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
-    <script src="https://unpkg.com/topojson-client@3"></script>
     <script src="https://d3js.org/d3-array.v1.min.js"></script>
     <script src="https://d3js.org/d3-geo.v1.min.js"></script>
+    <script src="https://d3js.org/d3-zoom.v1.min.js"></script> -->
+    <script src="https://unpkg.com/topojson-client@3"></script>
+
     <script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
     <script type="text/javascript" src="versor.js"></script>
     <script type="text/javascript" src="data.js"></script>
-    <script src="https://d3js.org/d3-zoom.v1.min.js"></script>
+
     <script type="text/javascript" src="globe.js"></script>
     <script type="text/javascript" src="app.js"></script>
 </body>

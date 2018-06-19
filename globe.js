@@ -1,7 +1,6 @@
 
 
 function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
-  console.log(worldLoRes);
   //================makeMap SCOPE=========================
   const width = 960;
   const height = 600;
@@ -14,24 +13,37 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
       tmax,
       scaleFactor,
       geoData,
+      countryData,
       landMass,
-      svg;
+      projections,
+      zoom,
+      tooltip,
+      yearRange = [1900, 2030],
+      paths;
+  var firstRun = true;
+  var svg = d3.select('svg');
+  var dataSelect = d3.select('#data');
+  var yearSelect = d3.select('#year');
+  const camel2title = (camelCase) => camelCase.replace(/([A-Z])/g, (match) => ` ${match}`).replace(/^./, (match) => match.toUpperCase());
+  
+
 
   //===============SET DEFAULTS=========================
-
-  //--------------color scales for individual data types
+  //--------------color ranges for data types !! add more!!
+    const colorRanges = [
+    ['white', 'purple'],
+    ['white', 'black'],
+    ['black', 'orange'],
+    ['white', 'red'],
+    ['red', 'green'],
+    ['white', 'red'],
+    ['red', 'green'],
+  ];
+  //--------------color scale for NoData---------------
   const colorScales = {           
               countryCode:  d3.scaleSequential()
-                              .interpolator(d3.interpolateRainbow),
-              population:   d3.scaleLinear()
-                            .range(['white', 'purple']),
-              medianAge:    d3.scaleLinear()
-                            .range(['white', 'black']),
-              fertilityRate: d3.scaleLinear()
-                            .range(['black', 'orange']),
-              popDensity:   d3.scaleLinear()
-                            .range(['white', 'red'])
-          };
+                              .interpolator(d3.interpolateRainbow)
+                      };
   //--------------bounding values for projections-------------
   const init = {
     zoomScale : {
@@ -54,41 +66,35 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
         bottom: 81
       }
   }
-
-  //------------create projections object for easy switching between projections------
-  let projections = {
-    'mercator': d3.geoMercator()
-                  .translate([width / 2, height / 1.45])
-                  .rotate([-11.2,0,0]),
-      'ortho': d3.geoOrthographic()
-                  .translate([width / 2, height / 2])
-                  .clipAngle(90)
-                  .precision(.1),
-      'twoworld': d3.geoGilbert()
-                  .translate([width / 2, height / 1.75])
-                  .clipAngle(90)
-                  .precision(.1)
-  };
-
-
-  //---paths is an object containing all paths accessible as paths[key]
-  let paths = {
-    'mercator': d3.geoPath()
-                .projection(projections.mercator),
-    'ortho': d3.geoPath()
-                .projection(projections['ortho']),
-    'twoworld': d3.geoPath()
-                .projection(projections['twoworld'])
-  };
-
-  state.scale = init.defaultZoom.mercator;          //-----set scale State
-
-  let graticule = d3.geoGraticule()
+//===============INIT===================
+  setState();   // init: STATE.year --> 2000
+  updateData(); // state --> |geoData + landMass|
+  console.log(geoData)
+  setYearRange(); //initialize yearRange 
+  updateYearSelect(); // state --> |year Range Bar|
+  setupMap();   //    ||--> STATE.key
+  setupProjections(); //  ||--> STATE.scale
+  resetProjection();  //  input--> |projections|--> STATE.projection
+  updatePaths();    //   STATE.projection --> |paths|
+  updateMap();      // STATE.projection --> |svg d|
+  setColorScales();
+  setColor();    //  STATE.year --> |svg color|-  apply coloring
+  firstRun = false;   //checked by updateYearColor
 
 
-  // ================Create Static Map Elements  
+  //==================STATE====================================
+  function setState() {
+    state.projection = d3.select('#projection').property('value');
+    state.hiResMap = d3.select('#res input').node().checked;
+    state.year = (firstRun) ? 2000 : +yearSelect.property('value');
+    state.key = dataSelect.property('value'); 
+    console.log('STATE Changed', state);
+  }
+
+  // ================Create Static Map Elements==================  
   function setupMap() {
-    svg = d3.select('svg')
+    state.scale = init.defaultZoom.mercator;          //-----set scale State
+    svg
       .attr('width', width)
       .attr('height', height)
   //-------add drag functionality-------------
@@ -97,6 +103,7 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
         .on('drag', drag))
 
     //-------add graticule path)
+    let graticule = d3.geoGraticule()
     svg.append('path')
       .datum(graticule)
       .attr('class', 'graticule')
@@ -104,23 +111,106 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
     //-------add globe cover--------------------
     svg.append('circle')
         .attr('class', 'globecover')
-}
-  setupMap();
-  updatePaths();
-  createMap();
+    //==========Selectors
+    //===============Central DATA selector for all 
+    //----------------get data from selector-----------------------
+    dataSelect
+      .on('change', () => {
+        setState();  
+        if (isYearKey(state.key)) {
+          d3.select('.year').classed('hidden', false);
+          yearRange = getYearRange(state.key);
+          updateYearSelect();    
+        }
+   //  key-->STATE
+        setColor();
+      })
+
+    updateYearSelect();
+    yearSelect
+      .on("input", () => {
+        setState();
+        setColor();
+      });
+    //--------projection selector--------------------------------------
+    d3.select('#projection')
+      .on('change', () => {
+        setState();
+        resetProjection(); // reset rotation and scale to default/ set state
+        updateMap();
+        setColor(state.key);
+      });
+
+     //--------Resolution selector--------------------------------------     
+    d3.select('#res')
+      .on('click', () => {
+        setState();
+      //   hiRes  Option --> state
+        updateData();
+        updatePaths();
+      });
+    //-------Tooltips------------------------
+    tooltip = d3.select('body')
+                    .append('div')
+                    .classed('tooltip', true)
+
+    //------initialize zoom----------------
+    zoom = d3.zoom()
+      .scaleExtent(init.zoomScale[state.projection])   //--------initial zoom scale
+      .on('zoom', zoomIt);
+    svg.call(zoom);
+
+  }
+
+
+  // ===============SETUP STATIC PROJECTION ELEMENTS==================  
+  function setupProjections() {
+      //------------create projections object for easy switching between projections------
+    projections = {
+      'mercator': d3.geoMercator()
+                    .translate([width / 2, height / 1.45])
+                    .rotate([-11.2,0,0]),
+        'ortho': d3.geoOrthographic()
+                    .translate([width / 2, height / 2])
+                    .clipAngle(90)
+                    .precision(.1),
+        'twoworld': d3.geoGilbert()
+                    .translate([width / 2, height / 1.75])
+                    .clipAngle(90)
+                    .precision(.1)
+    };
+
+    //---paths is an object containing all paths accessible as paths[key]
+    paths = {
+      'mercator': d3.geoPath()
+                  .projection(projections.mercator),
+      'ortho': d3.geoPath()
+                  .projection(projections['ortho']),
+      'twoworld': d3.geoPath()
+                  .projection(projections['twoworld'])
+    };
+  }
+  function setYearRange() {
+    for (let key in geoData[0].properties) {
+      if (isYearKey(key)) {
+        yearRange = getYearRange(key);
+        return;
+      }
+    }
+  }
 
 //=================UPDATE PATH DATA=================================
-  d3.select('#res')
-    .on('click', () => {
-      state.hiResMap = d3.select('#res input').node().checked;
-    //   hiRes  Option --> state
-      updatePaths();
-    });
-  //---------add landMass path---------------
-  function updatePaths() {
+
+  function updateData() {
     geoData = state.hiResMap ? worldHiRes : worldLoRes;
     landMass = state.hiResMap ? landHiRes : landLoRes;
-    console.log(geoData, landMass);
+    //    countryData contains only valid countries
+    countryData = geoData.filter(d => ((d.properties.country) || (d.properties.countryCode)));
+    countryData.units = geoData.units;
+  }  
+
+  function updatePaths() {
+    //---------add landMass path---------------
     var land = svg.select('.land')
                   .datum(landMass[0])
                     .append('path')
@@ -144,41 +234,22 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
             .attr('d', paths[state.projection])
   }
 
-
-    //---------setup tooltip for Country data--------------------------
-
-    //-------Tooltips------------------------
-  var tooltip = d3.select('body')
-                  .append('div')
-                  .classed('tooltip', true)
-
-  //------initialize zoom----------------
-  var zoom = d3.zoom()
-    .scaleExtent(init.zoomScale[state.projection])   //--------initial zoom scale
-    .on('zoom', zoomIt);
-  svg.call(zoom);
-
-
   //===========SET PROJECTION=============================
-  resetProjection('mercator'); 
-  //--------projection selector--------------------------------------
-  d3.select('#projection')
-      .on('change', () => {
-        resetProjection(d3.event.target.value)               // reset rotation and scale to default/ set state
-        createMap()
-      });
-
-  function resetProjection(p) {
-    state.projection = p;               // update projection state
-    zoom.scaleExtent(init.zoomScale[p])     // adjust zoom range
-    projections[p].rotate(init.defaultRotation[p]); // default rotation
-    projections[p].scale(init.defaultZoom[p]);      // default Zoom
+  function resetProjection() {
+    zoom.scaleExtent(init.zoomScale[state.projection])     // adjust zoom range
+    projections[state.projection].rotate(init.defaultRotation[state.projection]); // default rotation
+    projections[state.projection].scale(init.defaultZoom[state.projection]);      // default Zoom
   }
 
-  //---initial map
-  createMap(state[projection]);
-  //------Map refresher based on selected paths
-  function createMap() {
+  function updateYearSelect() {
+    yearSelect
+    .property("min", yearRange[0])
+    .property("max", yearRange[1])
+    .property("value", +state.year)
+  } 
+
+  //------Path refresher based on selected paths
+  function updateMap() {
       svg.classed('flat', () => state.projection == 'mercator');
 
       d3.selectAll('.land')
@@ -197,24 +268,63 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
   }
 
   //================APPLY COLORS BY DATA===============================
-  //----------------get data from selector-----------------------
-  var dataSelect = d3.select('#data');
-  dataSelect
-      .on('change', d => setColor(d3.event.target.value))
-  //------apply default coloring
-  setColor(dataSelect.property('value'));
+    //--------------color scales for individual data types
+  function setColorScales() {
+      colorScales.countryCode.domain(d3.extent(countryData, d => d.properties.countryCode))           
+    Object.keys(geoData.units).forEach((key,i) => {
+        if (isYearKey(key)) {
+          validData = countryData.filter(data => (data.properties[key]));
+          // make custom extent
+          let range = [Infinity,-Infinity];
+          for (let d = 0; d < validData.length; d++) {
+            for (let y = yearRange[0]; y <= yearRange[1]; y++) {
+              let value = validData[d].properties[key][y];
+              if (value < range[0]) range[0] = value;
+              if (value > range[1]) range[1] = value;
+            }
+          }
+          console.log(range, 'range for',key)
+          // log or lin is set only during initialization
+          colorScales[key] = /*((range[1] / range[0]) > 200) ? d3.scaleLog() : */d3.scaleLinear();
+          colorScales[key].domain(range).range(colorRanges[i % 6])
+                          
+        } else {
+        validData = countryData.filter(d => (d.properties[key]));
+        range = d3.extent(validData, d => d.properties[key]);
+        colorScales[key] = /*((range[1] / range[0]) > 500) ? d3.scaleLog() : */d3.scaleLinear();
+        colorScales[key].domain(range).range(colorRanges[i % 6])
+                        
+      }
+    });
+  }
 
+  function getYearRange(key) {
+    return d3.extent(Object.keys(countryData[0].properties[key]));
+  }
 
-  function setColor(val) {
+  function isYearKey(key) {
+    return ((typeof countryData[0].properties[key]) == 'object')
+  }
+
+  function setColor() {
+      let key = state.key;
+      console.log(key)
   //set color uses colorScales constant     
-    if (val == 'nodata') val = 'countryCode';
-      var scale = colorScales[val]
-                        .domain(d3.extent(geoData, d => d.properties[val]))
+      var cScale = colorScales[key];                    
       d3.selectAll('.country')
         .transition()
         .duration(750)
         .ease(d3.easeBackIn)
-        .attr('fill', d => d.properties[val] ? scale(d.properties[val]) : '#ccc');
+        .attr('fill', d => (d.properties[key]) 
+                              ? (isYearKey(key)) 
+                                  ? (d.properties[key][state.year])
+                                    ? cScale(d.properties[key][state.year]) 
+                                    : '#ccc'
+                                  : (d.properties[key])
+                                    ? cScale(d.properties[key]) 
+                                    : '#ccc'
+                              : '#ccc'
+                            );
   }
 
   //========================================================================
@@ -224,14 +334,18 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
      .style('opacity',1)
      .html(`
         <h4>${d.properties.country}</h4>
-        <p>Area (km2): ${d.properties.area} </p>
+        <p class="activeKey"> ${camel2title(state.key)} ${(countryData.units[state.key]) ? '(' + countryData.units[state.key] + ')' : ''}: 
+        ${(isYearKey(state.key)) ? d.properties[state.key][state.year] : d.properties[state.key]} </p>
+        <p>Area (km2): ${d.properties.landArea} </p>
         <p>Population (Mio): ${Math.round(d.properties.population / 1e4)/1e2} </p>
         <p>Median Age: ${d.properties.medianAge} </p>
         <p>Fertility Rate: ${d.properties.fertilityRate} </p>
-        <p>Population Density (/km2): ${Math.round(d.properties.popDensity*100) /100}</p>
+        <p>Population Density (/km2): ${Math.round(d.properties.populationDensity*100) /100}</p>
       `)
       .style('left', d3.event.x - (tooltip.node().offsetWidth / 2) + 'px')
-     .style('top', d3.event.y + 25 + 'px')
+      .style('top', d3.event.y + 25 + 'px');
+    d3.select('.activeKey')
+      .style('background', d3.select(`#id${d.properties.countryCode}`)).style('fill');
   }
 
   function hideTooltip() { 
@@ -270,20 +384,18 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
       projections[state.projection].translate([width / 2, dt]);
       projections[state.projection].rotate([r0 + dx * scaleFactor, 0]);
     }
-    createMap();
+    updateMap();
   }
 
   //========================================================================
   //================ZOOM BEHAVIOR===========================================
-
-
   //------catch zoom value from d3.event----------------
   function zoomIt() {
     if (d3.event) {
       state.scale = d3.event.transform.k;       //-----  scale --> state
       projections[state.projection].scale(state.scale);
       if (state.projection == 'mercator') containPan(); // keep translate within boundaries
-      createMap();
+      updateMap();
     }
   }
   //------------------contain view within panLimit during scaling for mercator----------

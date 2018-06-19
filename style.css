@@ -21,6 +21,10 @@ svg.flat {
   width: 270px;
   padding: 5px;
 }
+
+.selector.hidden {
+  display:none;
+}
 .selector p {
   display: inline;
 }

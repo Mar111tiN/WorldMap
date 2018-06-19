@@ -1,4 +1,4 @@
-Country,Country Code,Continent,Region,Year,Emissions Per Capita,Emissions
+Country,Country Code,Continent,Region,Year,Emissions Per Capita (metric tons),Emissions (1000 metric tons)
 Afghanistan,004,Asia,Southern Asia,2011,0.420932655980935,12251.447
 Afghanistan,004,Asia,Southern Asia,2010,0.298289530193382,8470.77
 Afghanistan,004,Asia,Southern Asia,2009,0.244570891628528,6776.616

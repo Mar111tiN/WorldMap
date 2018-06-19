@@ -1,4 +1,4 @@
-country,countryCode,population,landArea,medianAge,fertilityRate,
+country,countryCode,population,landArea (km2),medianAge,fertilityRate (births per woman)
 Antarctica,010,739795,13200000,N.A.,N.A.
 Afghanistan,004,34169169,653330,18,5.13
 Albania,008,2911428,27389,34,1.78
