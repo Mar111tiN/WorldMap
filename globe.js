@@ -7,8 +7,9 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
   var x0,
       y0,
       r0,
+      v0,
+      q0,
       ty0,
-      rNow,
       tmin,
       tmax,
       scaleFactor,
@@ -17,33 +18,34 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
       landMass,
       projections,
       zoom,
+      range,
       tooltip,
-      yearRange = [1900, 2030],
-      paths;
+      paths,
+      yearSelect;
+  var colorScales = {},
+      yearRange = {},   // object of {yearKey: [min, max]} | is computed by setYearRanges();;
+      state = {};
   var firstRun = true;
   var svg = d3.select('svg');
   var dataSelect = d3.select('#data');
-  var yearSelect = d3.select('#year');
+  const logLimit = 200;
   const camel2title = (camelCase) => camelCase.replace(/([A-Z])/g, (match) => ` ${match}`).replace(/^./, (match) => match.toUpperCase());
+  var allowLogScale = false;
   
 
 
   //===============SET DEFAULTS=========================
   //--------------color ranges for data types !! add more!!
-    const colorRanges = [
+  const colorRanges = [
     ['white', 'purple'],
     ['white', 'black'],
     ['black', 'orange'],
     ['white', 'red'],
-    ['red', 'green'],
-    ['white', 'red'],
+    ['green', 'red'],
+    ['white', 'black'],
     ['red', 'green'],
   ];
-  //--------------color scale for NoData---------------
-  const colorScales = {           
-              countryCode:  d3.scaleSequential()
-                              .interpolator(d3.interpolateRainbow)
-                      };
+
   //--------------bounding values for projections-------------
   const init = {
     zoomScale : {
@@ -69,7 +71,7 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
 //===============INIT===================
   setState();   // init: STATE.year --> 2000
   updateData(); // state --> |geoData + landMass|
-  console.log(geoData)
+  setCCColorScale();
   setYearRange(); //initialize yearRange 
   updateYearSelect(); // state --> |year Range Bar|
   setupMap();   //    ||--> STATE.key
@@ -88,7 +90,53 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
     state.hiResMap = d3.select('#res input').node().checked;
     state.year = (firstRun) ? 2000 : +yearSelect.property('value');
     state.key = dataSelect.property('value'); 
-    console.log('STATE Changed', state);
+  }
+
+  //==================DATA select====================================
+  function updateData() {
+    geoData = state.hiResMap ? worldHiRes : worldLoRes;
+    landMass = state.hiResMap ? landHiRes : landLoRes;
+    //    countryData contains only valid countries
+    countryData = geoData.filter(d => ((d.properties.country) || (d.properties.countryCode)));
+    countryData.units = geoData.units;
+  }  
+
+//==================YEAR RANGES FOR SCALES AND YEAR SELECTOR=================
+  function setYearRange() {
+    for (let key in geoData.units) {
+      if (isYearKey(key)) {
+        yearRange[key] = getYearRange(key);
+      }
+    }
+    return yearRange;
+  }
+  // get the global year range for passed-in key
+  function getYearRange(key) {
+    // iterate over all countries in countryData and store individual ranges in rangeArray
+    let rangeArray = countryData
+    .filter(obj => obj.properties[key])
+      .map(obj => d3.extent(Object.keys(obj.properties[key])));
+  // get minimum of rangeArray minima
+    let min = d3.min(rangeArray, d => d[0]);
+  // get maximum of rangeArray maxima
+    let max = d3.max(rangeArray, d => d[1]);
+    return [min, max];
+  }
+
+  function isYearKey(key) {
+    return ((typeof countryData[0].properties[key]) == 'object')
+  }
+
+  function updateYearSelect() {
+    // use state.key if it is a year key or the first key in the yearRange object
+    let key = isYearKey(state.key) ? state.key : Object.keys(yearRange)[0];
+    yearSelect = d3.select('#year')
+      .property("min", yearRange[key][0])
+      .property("max", yearRange[key][1])
+      .property("value", Math.max(+state.year, yearRange[key][0]));
+    d3.select('selector.year')
+      .insert('span', '#year').text(yearRange[key][0])     
+    d3.select('selector.year').append('span').text(yearRange[key][1]) 
   }
 
   // ================Create Static Map Elements==================  
@@ -119,7 +167,6 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
         setState();  
         if (isYearKey(state.key)) {
           d3.select('.year').classed('hidden', false);
-          yearRange = getYearRange(state.key);
           updateYearSelect();    
         }
    //  key-->STATE
@@ -190,28 +237,18 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
                   .projection(projections['twoworld'])
     };
   }
-  function setYearRange() {
-    for (let key in geoData[0].properties) {
-      if (isYearKey(key)) {
-        yearRange = getYearRange(key);
-        return;
-      }
-    }
+  //===========SET PROJECTION=============================
+  function resetProjection() {
+    zoom.scaleExtent(init.zoomScale[state.projection])     // adjust zoom range
+    projections[state.projection].rotate(init.defaultRotation[state.projection]); // default rotation
+    projections[state.projection].scale(init.defaultZoom[state.projection]);      // default Zoom
   }
 
 //=================UPDATE PATH DATA=================================
 
-  function updateData() {
-    geoData = state.hiResMap ? worldHiRes : worldLoRes;
-    landMass = state.hiResMap ? landHiRes : landLoRes;
-    //    countryData contains only valid countries
-    countryData = geoData.filter(d => ((d.properties.country) || (d.properties.countryCode)));
-    countryData.units = geoData.units;
-  }  
-
   function updatePaths() {
     //---------add landMass path---------------
-    var land = svg.select('.land')
+    svg.select('.land')
                   .datum(landMass[0])
                     .append('path')
                     .attr('class', 'land')
@@ -219,7 +256,7 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
       d3.selectAll('.country')
 
     //-------add all country paths-------------        
-    map = svg.selectAll('.country')
+    let map = svg.selectAll('.country')
         .data(geoData, d => d.properties.countryCode)
         .classed('updated', true)
         .attr('d', paths[state.projection])
@@ -234,19 +271,7 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
             .attr('d', paths[state.projection])
   }
 
-  //===========SET PROJECTION=============================
-  function resetProjection() {
-    zoom.scaleExtent(init.zoomScale[state.projection])     // adjust zoom range
-    projections[state.projection].rotate(init.defaultRotation[state.projection]); // default rotation
-    projections[state.projection].scale(init.defaultZoom[state.projection]);      // default Zoom
-  }
 
-  function updateYearSelect() {
-    yearSelect
-    .property("min", yearRange[0])
-    .property("max", yearRange[1])
-    .property("value", +state.year)
-  } 
 
   //------Path refresher based on selected paths
   function updateMap() {
@@ -267,48 +292,47 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
           .attr('d', paths[state.projection])
   }
 
-  //================APPLY COLORS BY DATA===============================
+  //--------------color scale for NoData---------------
+  function setCCColorScale() {
+    colorScales.countryCode = d3.scaleSequential()
+                .interpolator(d3.interpolateRainbow)
+                .domain(d3.extent(countryData, d => d.properties.countryCode));
+              }
+  //================APPLY COLORS===============================
     //--------------color scales for individual data types
   function setColorScales() {
-      colorScales.countryCode.domain(d3.extent(countryData, d => d.properties.countryCode))           
+
+//--------------color scale for Other keys---------------
     Object.keys(geoData.units).forEach((key,i) => {
-        if (isYearKey(key)) {
-          validData = countryData.filter(data => (data.properties[key]));
-          // make custom extent
-          let range = [Infinity,-Infinity];
-          for (let d = 0; d < validData.length; d++) {
-            for (let y = yearRange[0]; y <= yearRange[1]; y++) {
-              let value = validData[d].properties[key][y];
-              if (value < range[0]) range[0] = value;
-              if (value > range[1]) range[1] = value;
-            }
+      let validData;
+      //--------------color scale for Year Keys---------------
+      if (isYearKey(key)) {
+        validData = countryData.filter(data => (data.properties[key]));
+        // make custom extent
+        range = [Infinity,-Infinity];
+        for (let d = 0; d < validData.length; d++) {
+          for (let y = yearRange[key][0]; y <= yearRange[key][1]; y++) {
+            let value = validData[d].properties[key][y];
+            if (value < range[0]) range[0] = value;
+            if (value > range[1]) range[1] = value;
           }
-          console.log(range, 'range for',key)
-          // log or lin is set only during initialization
-          colorScales[key] = /*((range[1] / range[0]) > 200) ? d3.scaleLog() : */d3.scaleLinear();
-          colorScales[key].domain(range).range(colorRanges[i % 6])
-                          
-        } else {
+        }                   
+      } else {
+
         validData = countryData.filter(d => (d.properties[key]));
-        range = d3.extent(validData, d => d.properties[key]);
-        colorScales[key] = /*((range[1] / range[0]) > 500) ? d3.scaleLog() : */d3.scaleLinear();
-        colorScales[key].domain(range).range(colorRanges[i % 6])
-                        
+        range = d3.extent(validData, d => d.properties[key]);   
       }
+      // true is a placeholder for log evaluation (false)
+      colorScales[key] = (!allowLogScale) ? d3.scaleLinear()
+                                : ((range[1] / range[0]) > logLimit) 
+                                    ? d3.scaleLog() 
+                                    : d3.scaleLinear();
+      colorScales[key].domain(range).range(colorRanges[i % 6])   
     });
-  }
-
-  function getYearRange(key) {
-    return d3.extent(Object.keys(countryData[0].properties[key]));
-  }
-
-  function isYearKey(key) {
-    return ((typeof countryData[0].properties[key]) == 'object')
   }
 
   function setColor() {
       let key = state.key;
-      console.log(key)
   //set color uses colorScales constant     
       var cScale = colorScales[key];                    
       d3.selectAll('.country')
@@ -330,12 +354,17 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
   //========================================================================
   //================TOOLTIP BEHAVIOR========================================
   function showTooltip(d, e){
+    let currentValue = (d.properties[state.key])
+                        ? (isYearKey(state.key)) 
+                          ? d.properties[state.key][state.year] 
+                          : d.properties[state.key] 
+                        : 'no data'
     tooltip
      .style('opacity',1)
      .html(`
         <h4>${d.properties.country}</h4>
         <p class="activeKey"> ${camel2title(state.key)} ${(countryData.units[state.key]) ? '(' + countryData.units[state.key] + ')' : ''}: 
-        ${(isYearKey(state.key)) ? d.properties[state.key][state.year] : d.properties[state.key]} </p>
+        ${currentValue} </p>
         <p>Area (km2): ${d.properties.landArea} </p>
         <p>Population (Mio): ${Math.round(d.properties.population / 1e4)/1e2} </p>
         <p>Median Age: ${d.properties.medianAge} </p>
@@ -376,8 +405,8 @@ function makeMap({worldLoRes, landLoRes, worldHiRes, landHiRes}) {
         var r1 = versor.rotation(q1);
         projections.ortho.rotate(r1);
     } else {                                    
-      dx = d3.event.x - x0;
-      dy = d3.event.y - y0;
+      let dx = d3.event.x - x0;
+      let dy = d3.event.y - y0;
 
       dt = Math.max(Math.min(ty0 + dy, tmax), tmin)
       scaleFactor = 57 / state.scale;

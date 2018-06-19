@@ -7,18 +7,6 @@ function getData({mapDataUrl, dataUrl}) {
   let fetch = d3.queue();
   let keyArray = [];    // store all key types
   let units = {};           // store key:unit pairs
-  let operator,
-    arg1,
-    text1,
-    arg2,
-    text2,
-    result;
-    operate = {
-      '+': [(x,y) => x + y, 'plus'],
-      '-': [(x,y) => x - y, 'minus'],
-      '/': [(x,y) => x / y, 'per'],
-      '*': [(x,y) => x * y, 'times']
-    };
  //fetch GeoData (TopoJSON hiRes and loRes) and fill mapData with {worldLoRes, landLoRes, worldHiRes, landHiRes}
   queueMapData(mapDataUrl);
   //fetch countryData from dataUrl list
@@ -32,7 +20,6 @@ function getData({mapDataUrl, dataUrl}) {
     mapData.landHiRes = [topojson.feature(worldMapHiRes, worldMapHiRes.objects.land)];   // account for different data structure of loRes and HiRes land
     // convert annual dataSets (key: {year: value, year:value}) and store in dataArray
     let dataArray = dataSets.map((dataSet) => (containsAnnualData(dataSet)) ?  sortedByYear(dataSet) : dataSet);
-    console.log('newData',dataArray[2]);
     // merge dataSets by country into mergedDataset
     mergedDataset = mergeData(dataArray);
     // link mergedDataset to mapDatasets
@@ -51,22 +38,15 @@ function getData({mapDataUrl, dataUrl}) {
 
   // fetch country Data from dataUrl list
   function queueCountryData(_dataUrl) {
-    fetch
-      .defer(d3.csv, _dataUrl[0], csvFormatter())
-      .defer(d3.csv, _dataUrl[1], csvFormatter('populationDensity = population / landArea'))
-      .defer(d3.csv, _dataUrl[2], csvFormatter())
-  }
-  function csvFormatter(equation) {
-    return (row,i,header) => customFormatter(row,i,header,equation)
+    _dataUrl.forEach(url => fetch.defer(d3.csv, url, csvFormatter))
   }
 
-  function customFormatter(row,i,header, equation = false) {
+
+  function csvFormatter(row,i,header) {
     if (i == 0) {
       keyArray = [];
-    //!!! use args to derive parameters
     // identify keys and store type in key array 
-    //  (countryName = 'cn', countryCode = 'cc', year = 'y', other = 'o', value = 'v', x = 'did not work') 
-
+    //  (countryName = 'cn', countryCode = 'cc', year = 'y', ommit = 'o', value = 'v', x = 'did not work') 
       header.forEach((key, j) => {
         let formattedKey = formatted(key);
         let keytype = (['name,', 'country', 'countryname'].includes(formattedKey))
@@ -76,8 +56,10 @@ function getData({mapDataUrl, dataUrl}) {
             : (formattedKey == 'year')
               ? 'y'
               : (isNumberString(row[key]) || (formatted(row[key]) == 'na') )
-              ? 'v'
-              : 'x'
+                ? 'v'
+                : ((formattedKey[0] == '>') && (formattedKey[formattedKey.length-1] == '<'))
+                    ? 'o'  
+                    : 'x'
         if (keytype == 'v') {
           let valueKey;
           let brack = key.search(/[\(]/g)
@@ -91,19 +73,11 @@ function getData({mapDataUrl, dataUrl}) {
             keyArray.push(camelCaseIt(key));
           }
         } else keyArray.push(keytype);      
-      });      
-      if (equation) {
-        result = camelCaseIt(equation.slice(0,equation.search('=')).trim());
-        operator = equation.split('').reduce((operator,char) => (['+','-','*','/'].includes(char)) ? char + operator : operator, '').toString();
-        arg1 = camelCaseIt(equation.slice(equation.indexOf('=') + 1, equation.indexOf(operator)).trim());
-        arg2 = camelCaseIt(equation.slice(equation.indexOf(operator) + 1).trim());
-        text1 = (units[arg1]) ? units[arg1] + ' ' : '';
-        text2 = (units[arg2]) ? ' ' + units[arg2] : '';
-        units[result] = text1 + operate[operator][1] + text2;
-      }
+      });
     }
     let obj = {};
     Object.keys(row).forEach((key, i) => {
+      if (keyArray[i] == 'o') return;
       (keyArray[i] == 'cn')
         ? obj.country = row[key] 
         : (keyArray[i] == 'cc')
@@ -114,12 +88,40 @@ function getData({mapDataUrl, dataUrl}) {
               ? obj[key] = row[key] 
               : obj[keyArray[i]] = +row[key]
     });
-    if (equation) {
-      obj[result] = (operate[operator][0])(obj[arg1], obj[arg2]);
-    }
     return obj;  
   }
-    
+    //================REFACTOR EQUATION PROCESSING=============
+    function equate(equation) {
+      let operator,
+      arg1,
+      text1,
+      arg2,
+      text2,
+      result;
+      operate = {
+        '+': [(x,y) => x + y, 'plus'],
+        '-': [(x,y) => x - y, 'minus'],
+        '/': [(x,y) => x / y, 'per'],
+        '*': [(x,y) => x * y, 'times']
+      };
+      if (equation) {
+        result = camelCaseIt(equation.slice(0,equation.search('=')).trim());
+        operator = equation.split('').reduce((operator,char) => (['+','-','*','/'].includes(char)) ? char + operator : operator, '').toString();
+        arg1 = camelCaseIt(equation.slice(equation.indexOf('=') + 1, equation.indexOf(operator)).trim());
+        arg2 = camelCaseIt(equation.slice(equation.indexOf(operator) + 1).trim());
+        text1 = (units[arg1]) ? units[arg1] + ' ' : '';
+        text2 = (units[arg2]) ? ' ' + units[arg2] : '';
+        units[result] = text1 + operate[operator][1] + text2;
+      }
+      if (equation) {
+      obj[result] = (operate[operator][0])(obj[arg1], obj[arg2]);
+      }
+      return (row,year) => (year) 
+        ? operate[operator][0](row.properties[arg1],row.properties[arg2])
+        : operate[operator][0](row.properties[arg1][year],row.properties[arg2][year])
+    }
+
+
   // Add AutoDetect dataSets with year property and returns 
   function containsAnnualData(dataSet) {
     return (countainsYearKey(dataSet) && multipleId(dataSet));
@@ -182,7 +184,7 @@ function getData({mapDataUrl, dataUrl}) {
     let _mergedData = _dataArray.reduce((accumData, addedData) => {
       addedData.forEach(row => {
         // if country does not exist in mergingData, add complete row to mergingData
-        let country = accumData.filter(country => country.countryCode == row.countryCode)[0];
+        let country = accumData.filter(country => (country.countryCode == row.countryCode) || (country.country == row.country)  )[0];
         if (!country) {
             accumData.push(row)
           } else {

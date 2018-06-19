@@ -13,7 +13,8 @@ const links = {
       hiResUrl: './data/world-50m.json',
       loResUrl: 'https://unpkg.com/world-atlas@1/world/110m.json'
       },
-    dataUrl : ['./data/emmission_data.csv', './data/country_data.csv', './data/consumerprise.csv']
+      dataUrl : ['./data/emmission_data.csv', './data/country_data.csv', './data/consumerprise.csv'],
+      equations : ['']
   }
 
 //fetch mapData [Array] 
