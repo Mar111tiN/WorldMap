@@ -1,8 +1,6 @@
 function getData({mapDataUrl, dataUrl}) {
-  const showPopulationDensity = true;
   const formatted = key => key.toLowerCase().replace(/[.\-_\s]/g,'');  //!!!change to RegExp
   const isNumberString = string => !isNaN(+string) || (formatted(string) == 'na');
-  const camelCaseIt = string => (array => (array.length - 1) ? array.reduce((string, word,i, stringArray) => (i > 0) ? string + word[0].toUpperCase() + word.slice(1).toLowerCase() : string + word.toLowerCase(), '') : array[0][0].toLowerCase() + array[0].slice(1))(string.trim().split(/[.\-_\s]/g));
   let mapData = {};
   let fetch = d3.queue();
   let keyArray = [];    // store all key types
@@ -21,16 +19,15 @@ function getData({mapDataUrl, dataUrl}) {
     // convert annual dataSets (key: {year: value, year:value}) and store in dataArray
     let dataArray = dataSets.map((dataSet) => (containsAnnualData(dataSet)) ?  sortedByYear(dataSet) : dataSet);
     // merge dataSets by country into mergedDataset
-    mergedDataset = mergeData(dataArray);
+    let mergedDataset = mergeData(dataArray);
     // link mergedDataset to mapDatasets
     linkGeoJsonToData(mapData.worldLoRes, mergedDataset);
     linkGeoJsonToData(mapData.worldHiRes, mergedDataset);
-    createDisplay(mapData);
+    setUp(mapData);
   });
-  
 
  //fetch GeoData (TopoJSON hiRes and loRes) and fill mapData with {worldLoRes, landLoRes, worldHiRes, landHiRes}
-  function queueMapData({hiResUrl, loResUrl}, geoData) {
+  function queueMapData({hiResUrl, loResUrl}) {
     fetch
       .defer(d3.json, loResUrl)     //small map
       .defer(d3.json, hiResUrl)     //large map
@@ -47,7 +44,7 @@ function getData({mapDataUrl, dataUrl}) {
       keyArray = [];
     // identify keys and store type in key array 
     //  (countryName = 'cn', countryCode = 'cc', year = 'y', ommit = 'o', value = 'v', x = 'did not work') 
-      header.forEach((key, j) => {
+      header.forEach((key) => {
         let formattedKey = formatted(key);
         let keytype = (['name,', 'country', 'countryname'].includes(formattedKey))
           ? 'cn'
@@ -86,7 +83,9 @@ function getData({mapDataUrl, dataUrl}) {
             ? obj.year = +row[key]
             : (keyArray[i] == 'x')
               ? obj[key] = row[key] 
-              : obj[keyArray[i]] = +row[key]
+              : (typeof +obj[keyArray[i]] == 'number') 
+                ? obj[keyArray[i]] = +row[key]
+                : obj[keyArray[i]] = null
     });
     return obj;  
   }
@@ -204,7 +203,7 @@ function getData({mapDataUrl, dataUrl}) {
 
   function linkGeoJsonToData(_geoData, dataSet) {
     _geoData.units = dataSet.units;
-    dataSet.forEach((row, i) => {
+    dataSet.forEach((row) => {
       var countries = _geoData.filter(d => +d.id === +row.countryCode);
       countries.forEach(country => {
         country.properties = row;

@@ -3,36 +3,66 @@
 <head>
   <meta charset="UTF-8">
   <title>D3 Map</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="./src/style.css">
+  <link href="https://fonts.googleapis.com/css?family=Roboto|Source+Sans+Pro:400,600" rel="stylesheet">
 </head>
 <body>
-    <svg
-        version='1.1'
-        baseProfile='full'
-        xmlns='http://www.w3.org/2000/svg'
-        id='map'>      
-    </svg>
-    <div class="selector">
-        <p>Select Data</p>
-        <select id='data'>
-            <option value='countryCode'>No Data</option>
-        </select>
+    <div id="topnav">
+            <h1>The Interactive World Map</h1>
+            <h2 id="subtitle">
+                Find out all about the countries of the world and import your own datasets
+            </h2>
+            <div class="select-container" id="data-select">
+                <div class="selector">
+                    <p>Select Data</p>
+                    <select id='data'>
+                        <option value='countryCode'>No Data</option>
+                    </select>
+                </div>   
+                <div class="selector year hidden">
+                    <p id="year-display">Current year: <span id="current-year"></span> </p>
+                    <input id="year" type="range" step="1">
+                </div> 
+            </div>   
+        </div>
+    <div class="container">        
+        <div id='map'>
+            <svg
+                version='1.1'
+                baseProfile='full'
+                xmlns='http://www.w3.org/2000/svg'
+                id='map'>      
+            </svg>
+            <div class="select-container">
+                <div class="selector">
+                    <p>Select Projection</p>
+                    <select id='projection'>
+                        <option value='mercator'>Flat (Mercator)</option>
+                        <option value='ortho'>Globe (ortho)</option>
+                        <option value='twoworld'>TwoWorld (Gilbert)</option>
+                    </select>  
+                </div>
+                <div class="selector">
+                    <p>High Resolution (50m)</p>
+                    <input id="resolution" type="checkbox" name="res" value="hires">test<br>
+                </div>
+
+            </div>
+        </div>
+        <div id='scatter'>
+            <svg
+                version='1.1'
+                baseProfile='full'
+                xmlns='http://www.w3.org/2000/svg'
+                id='scatter'>      
+            </svg>
+            <div id='scatterSelect' class="select-container">
+            </div>
+        </div>       
     </div>
-    <div class="selector year hidden">
-        <p>Select Year</p>
-        <input id="year" type="range" step="1">
-    </div>
-    <div class="selector">
-        <p>Select Projection</p>
-        <select id='projection'>
-            <option value='mercator'>Flat (Mercator)</option>
-            <option value='ortho'>Globe (ortho)</option>
-            <option value='twoworld'>TwoWorld (Gilbert)</option>
-        </select>
-        <form class="selector" id='res'>
-            <input type="checkbox" name="res" value="hires">HiRes<br>
-        </form>
-    </div>
+
+
+
     <script src="https://d3js.org/d3.v4.js"></script>
 <!--<script src="https://d3js.org/d3-color.v1.min.js"></script>
     <script src="https://d3js.org/d3-interpolate.v1.min.js"></script>
@@ -40,13 +70,15 @@
     <script src="https://d3js.org/d3-array.v1.min.js"></script>
     <script src="https://d3js.org/d3-geo.v1.min.js"></script>
     <script src="https://d3js.org/d3-zoom.v1.min.js"></script> -->
-    <script src="https://unpkg.com/topojson-client@3"></script>
-
+<!--<script src="https://unpkg.com/topojson-client@3"></script> -->
+    <script src="https://d3js.org/d3-format.v1.min.js"></script>
+    <script type="text/javascript" src="./src/topojson.js"></script>
     <script src="https://d3js.org/d3-geo-projection.v2.min.js"></script>
-    <script type="text/javascript" src="versor.js"></script>
+    <script type="text/javascript" src="./src/versor.js"></script>
+    <script type="text/javascript" src="util.js"></script>
     <script type="text/javascript" src="data.js"></script>
-
     <script type="text/javascript" src="globe.js"></script>
+    <script type="text/javascript" src="scatter.js"></script>  
     <script type="text/javascript" src="app.js"></script>
 </body>
 </html>
