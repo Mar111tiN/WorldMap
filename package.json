@@ -1,0 +1,26 @@
+{
+  "name": "worldmap",
+  "version": "1.0.0",
+  "description": "Interactive worldmap",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mar111tiN/WorldMap.git"
+  },
+  "keywords": [
+    "TopoJSON"
+  ],
+  "author": "Martin Szyska",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Mar111tiN/WorldMap/issues"
+  },
+  "homepage": "https://github.com/Mar111tiN/WorldMap#readme",
+  "dependencies": {
+    "ejs": "^2.6.1",
+    "express": "^4.16.3"
+  }
+}
