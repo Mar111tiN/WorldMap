@@ -7,6 +7,6 @@ app.get('/', function(req, res) {
     res.render('index');
 });
 
-app.listen(3000, function() {
-    console.log('"TopoWorldMap running on 3000')
+app.listen(8080, function() {
+    console.log('Worldmap running on 8080')
 })
