@@ -1,6 +1,8 @@
 ## Interactive World map
 ### interactive world map showcasing d3.js
 
+![World Map Screenshot](https://github.com/Mar111tiN/WorldMap/blob/master/worldmap-shot.png?raw=true)
+
 + features three different projections, 5 coloring schemes
 
 + has drag-n-drop capability for all projections
@@ -11,5 +13,6 @@
 `docker run --rm -d -p <yourport>:8080 --name worldmap martin37szyska/worldmap`
 
 + if not running in a container, run node index.js in an environment containing node.js >=12
+
 
 
