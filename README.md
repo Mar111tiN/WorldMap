@@ -8,6 +8,7 @@
 
 + best enjoyed as a container:
 `docker run --rm -d -p <yourport>:8080 --name worldmap martin37szyska/worldmap`
+  * see on [docker hub](https://hub.docker.com/r/martin37szyska/worldmap)
 
 + if not running in a container, run node index.js in an environment containing node.js >=12
 
