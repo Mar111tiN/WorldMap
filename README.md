@@ -1,8 +1,5 @@
-## Interactive World map
-### interactive world map showcasing d3.js
-
 ![World Map Screenshot](https://github.com/Mar111tiN/WorldMap/blob/master/worldmap-shot.png?raw=true)
-
+### interactive world map showcasing d3.js
 + features three different projections, 5 coloring schemes
 
 + has drag-n-drop capability for all projections
